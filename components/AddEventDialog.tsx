@@ -20,6 +20,7 @@ interface AddEventDialogProps {
     date: string;
     recurrenceType?: string;
     recurrenceConfig?: RecurrenceConfig;
+    endDate?: string;
     color?: string;
   }) => Promise<void>;
   initialDate?: string;
