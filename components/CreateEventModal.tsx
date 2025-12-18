@@ -23,7 +23,8 @@ export default function CreateEventModal({
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState('');
-  const [color, setColor] = useState('#3b82f6');
+  const [selectedPlannerId, setSelectedPlannerId] = useState<string>('');
+  const [planners, setPlanners] = useState<Array<{ _id: string; name: string; color: string; icon?: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -74,7 +75,7 @@ export default function CreateEventModal({
           recurrenceConfig,
           startDate,
           endDate: endDate || undefined,
-          color,
+          plannerId: selectedPlannerId || undefined,
         }),
       });
 
@@ -93,7 +94,7 @@ export default function CreateEventModal({
       setSelectedDays([]);
       setStartDate(new Date().toISOString().split('T')[0]);
       setEndDate('');
-      setColor('#3b82f6');
+      setSelectedPlannerId(planners.length > 0 ? planners[0]._id : '');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -218,14 +219,26 @@ export default function CreateEventModal({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Color
+                Planner *
               </label>
-              <input
-                type="color"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                className="w-full h-10 rounded-lg border border-gray-300 cursor-pointer"
-              />
+              <select
+                value={selectedPlannerId}
+                onChange={(e) => setSelectedPlannerId(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select a planner</option>
+                {planners.map((planner) => (
+                  <option key={planner._id} value={planner._id}>
+                    {planner.name}
+                  </option>
+                ))}
+              </select>
+              {planners.length === 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  No planners available. Create one first.
+                </p>
+              )}
             </div>
 
             {error && (

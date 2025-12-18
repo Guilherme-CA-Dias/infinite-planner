@@ -23,6 +23,7 @@ interface KanbanBoardProps {
 	addEventDialogOpen: boolean;
 	setAddEventDialogOpen: (open: boolean) => void;
 	userId: string;
+	selectedPlanners?: string[];
 }
 
 const DAYS_PER_WEEK = 7;
@@ -36,6 +37,7 @@ export function KanbanBoard({
 	addEventDialogOpen,
 	setAddEventDialogOpen,
 	userId,
+	selectedPlanners = [],
 }: KanbanBoardProps) {
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const {
@@ -76,15 +78,23 @@ export function KanbanBoard({
 	// Find today's index - should be at INITIAL_DAYS_BEFORE (7) when starting
 	const todayIndex = dates.findIndex((d) => d === todayStr);
 
-	// Initial fetch on mount
+	// Create a wrapper function that includes selectedPlanners
+	const fetchEventsWithPlanners = useCallback(
+		(start: Date, end: Date, merge: boolean = false) => {
+			return fetchEvents(start, end, merge, selectedPlanners);
+		},
+		[fetchEvents, selectedPlanners]
+	);
+
+	// Initial fetch on mount and when selectedPlanners change
 	useEffect(() => {
 		const start = subDays(today, INITIAL_DAYS_BEFORE);
 		const end = addDays(today, INITIAL_DAYS_AFTER);
 		setLoadedStartDate(start);
 		setLoadedEndDate(end);
-		fetchEvents(start, end);
+		fetchEventsWithPlanners(start, end);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []); // Only run on mount
+	}, [selectedPlanners]); // Re-fetch when planners change
 
 	// Initial scroll to today - use useLayoutEffect for synchronous execution before paint
 	useLayoutEffect(() => {
@@ -245,7 +255,7 @@ export function KanbanBoard({
 					// Load a week before
 					newStartDate = subDays(loadedStartDate, DAYS_PER_WEEK);
 					newStartOffset = startDateOffset - DAYS_PER_WEEK;
-					await fetchEvents(newStartDate, loadedEndDate, true); // merge = true
+					await fetchEventsWithPlanners(newStartDate, loadedEndDate, true); // merge = true
 
 					// Adjust scroll position to maintain visual position
 					// We added DAYS_PER_WEEK columns on the left, so we need to shift scroll right
@@ -259,7 +269,7 @@ export function KanbanBoard({
 					// Load a week after
 					newEndDate = addDays(loadedEndDate, DAYS_PER_WEEK);
 					newEndOffset = endDateOffset + DAYS_PER_WEEK;
-					await fetchEvents(loadedStartDate, newEndDate, true); // merge = true
+					await fetchEventsWithPlanners(loadedStartDate, newEndDate, true); // merge = true
 					// No scroll adjustment needed for right-side loading
 				}
 
@@ -276,6 +286,7 @@ export function KanbanBoard({
 		[
 			startDateOffset,
 			endDateOffset,
+			fetchEventsWithPlanners,
 			loadedStartDate,
 			loadedEndDate,
 			fetchEvents,
@@ -348,7 +359,7 @@ export function KanbanBoard({
 		title: string;
 		description?: string;
 		date: string;
-		color?: string;
+		plannerId?: string;
 	}) => {
 		if (!editEvent) return;
 
@@ -412,6 +423,7 @@ export function KanbanBoard({
 				onOpenChange={setAddEventDialogOpen}
 				onAdd={addEvent}
 				initialDate={selectedDate}
+				userId={userId}
 			/>
 
 			{/* Edit Event Dialog */}
@@ -439,6 +451,7 @@ export function KanbanBoard({
 								setActionScope(null);
 							}}
 							onSave={handleEditSave}
+							userId={userId}
 						/>
 					)}
 				</>

@@ -3,6 +3,14 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Button } from './ui/button';
+import { getIconComponent } from '@/lib/iconHelper';
+
+interface Planner {
+  _id: string;
+  name: string;
+  color: string;
+  icon?: string;
+}
 
 interface EditEventDialogProps {
   open: boolean;
@@ -11,7 +19,7 @@ interface EditEventDialogProps {
     title: string;
     description?: string;
     date: string;
-    color?: string;
+    plannerId?: string;
     recurringEventId?: string;
   };
   onClose: () => void;
@@ -19,8 +27,9 @@ interface EditEventDialogProps {
     title: string;
     description?: string;
     date: string;
-    color?: string;
+    plannerId?: string;
   }) => Promise<void>;
+  userId: string;
 }
 
 export function EditEventDialog({
@@ -28,11 +37,14 @@ export function EditEventDialog({
   event,
   onClose,
   onSave,
+  userId,
 }: EditEventDialogProps) {
   const [title, setTitle] = useState(event.title);
   const [description, setDescription] = useState(event.description || '');
   const [selectedDate, setSelectedDate] = useState(event.date);
-  const [color, setColor] = useState(event.color || '#3b82f6');
+  const [selectedPlannerId, setSelectedPlannerId] = useState<string>(event.plannerId || '');
+  const [planners, setPlanners] = useState<Planner[]>([]);
+  const [loadingPlanners, setLoadingPlanners] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -40,9 +52,34 @@ export function EditEventDialog({
       setTitle(event.title);
       setDescription(event.description || '');
       setSelectedDate(event.date);
-      setColor(event.color || '#3b82f6');
+      setSelectedPlannerId(event.plannerId || '');
+      fetchPlanners();
     }
-  }, [open, event]);
+  }, [open, event, userId]);
+
+  const fetchPlanners = async () => {
+    setLoadingPlanners(true);
+    try {
+      const response = await fetch('/api/planners', {
+        headers: {
+          'x-user-id': userId,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Combine owned and shared planners
+        const allPlanners = [
+          ...(data.planners || []),
+          ...(data.sharedPlanners || [])
+        ];
+        setPlanners(allPlanners);
+      }
+    } catch (error) {
+      console.error('Error fetching planners:', error);
+    } finally {
+      setLoadingPlanners(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +91,7 @@ export function EditEventDialog({
         title: title.trim(),
         description: description.trim() || undefined,
         date: selectedDate,
-        color,
+        plannerId: selectedPlannerId || undefined,
       });
       onClose();
     } catch (error) {
@@ -125,14 +162,35 @@ export function EditEventDialog({
 
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
-              Color
+              Planner *
             </label>
-            <input
-              type="color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              className="w-full h-10 rounded-lg border border-border cursor-pointer"
-            />
+            {loadingPlanners ? (
+              <div className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground">
+                Loading planners...
+              </div>
+            ) : (
+              <select
+                value={selectedPlannerId}
+                onChange={(e) => setSelectedPlannerId(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">Select a planner</option>
+                {planners.map((planner) => {
+                  const IconComponent = getIconComponent(planner.icon);
+                  return (
+                    <option key={planner._id} value={planner._id}>
+                      {planner.name}
+                    </option>
+                  );
+                })}
+              </select>
+            )}
+            {planners.length === 0 && !loadingPlanners && (
+              <p className="text-xs text-muted-foreground mt-1">
+                No planners available. Create one first.
+              </p>
+            )}
           </div>
 
           <div className="flex gap-2 pt-4">

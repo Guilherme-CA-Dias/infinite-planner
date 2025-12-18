@@ -3,6 +3,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 export interface IEventCard extends Document {
   userId: mongoose.Types.ObjectId;
   recurringEventId?: mongoose.Types.ObjectId;
+  plannerId?: mongoose.Types.ObjectId;
   title: string;
   description?: string;
   date: Date;
@@ -23,6 +24,11 @@ const EventCardSchema: Schema = new Schema({
   recurringEventId: {
     type: Schema.Types.ObjectId,
     ref: 'RecurringEvent',
+    index: true,
+  },
+  plannerId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Planner',
     index: true,
   },
   title: {

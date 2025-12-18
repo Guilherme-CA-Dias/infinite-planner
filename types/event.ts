@@ -8,5 +8,7 @@ export interface DayEvent {
   category?: string;
   time?: string;
   recurringEventId?: string;
+  plannerId?: string;
+  plannerColor?: string;
 }
 

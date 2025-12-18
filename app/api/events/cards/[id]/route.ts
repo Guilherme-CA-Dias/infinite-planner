@@ -22,7 +22,7 @@ export async function PATCH(
 					title: z.string().optional(),
 					description: z.string().optional(),
 					date: z.string().or(z.date()).optional(),
-					color: z.string().optional(),
+					plannerId: z.string().optional(),
 				}),
 			})
 			.parse(body);
@@ -62,7 +62,9 @@ export async function PATCH(
 				);
 			}
 		}
-		if (updates.color) card.color = updates.color;
+		if (updates.plannerId !== undefined) {
+			card.plannerId = updates.plannerId || undefined;
+		}
 		card.updatedAt = new Date();
 
 		await card.save();

@@ -4,6 +4,7 @@ export type RecurrenceType = 'daily' | 'everyXDays' | 'daysOfWeek';
 
 export interface IRecurringEvent extends Document {
   userId: mongoose.Types.ObjectId;
+  plannerId?: mongoose.Types.ObjectId;
   title: string;
   description?: string;
   recurrenceType: RecurrenceType;
@@ -66,6 +67,11 @@ const RecurringEventSchema: Schema = new Schema({
   color: {
     type: String,
     default: '#3b82f6', // Default blue
+  },
+  plannerId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Planner',
+    index: true,
   },
   createdAt: {
     type: Date,

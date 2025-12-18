@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { X } from 'lucide-react';
 import { Button } from './ui/button';
 import { RecurrenceType } from '@/models/RecurringEvent';
+import { getIconComponent } from '@/lib/iconHelper';
 
 interface RecurrenceConfig {
   interval?: number;
@@ -21,16 +22,25 @@ interface AddEventDialogProps {
     recurrenceType?: string;
     recurrenceConfig?: RecurrenceConfig;
     endDate?: string;
-    color?: string;
+    plannerId?: string;
   }) => Promise<void>;
   initialDate?: string;
+  userId: string;
+}
+
+interface Planner {
+  _id: string;
+  name: string;
+  color: string;
+  icon?: string;
 }
 
 export function AddEventDialog({ 
   open, 
   onOpenChange, 
   onAdd, 
-  initialDate 
+  initialDate,
+  userId
 }: AddEventDialogProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -40,7 +50,9 @@ export function AddEventDialog({
   const [interval, setInterval] = useState(1);
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [endDate, setEndDate] = useState('');
-  const [color, setColor] = useState('#3b82f6');
+  const [selectedPlannerId, setSelectedPlannerId] = useState<string>('');
+  const [planners, setPlanners] = useState<Planner[]>([]);
+  const [loadingPlanners, setLoadingPlanners] = useState(false);
 
   const daysOfWeek = [
     { value: 0, label: 'Sunday' },
@@ -60,6 +72,41 @@ export function AddEventDialog({
       }, 0);
     }
   }, [initialDate]);
+
+  // Fetch planners when dialog opens
+  useEffect(() => {
+    if (open && userId) {
+      fetchPlanners();
+    }
+  }, [open, userId]);
+
+  const fetchPlanners = async () => {
+    setLoadingPlanners(true);
+    try {
+      const response = await fetch('/api/planners', {
+        headers: {
+          'x-user-id': userId,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Combine owned and shared planners
+        const allPlanners = [
+          ...(data.planners || []),
+          ...(data.sharedPlanners || [])
+        ];
+        setPlanners(allPlanners);
+        // Auto-select first planner if available and none selected
+        if (allPlanners.length > 0 && !selectedPlannerId) {
+          setSelectedPlannerId(allPlanners[0]._id);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching planners:', error);
+    } finally {
+      setLoadingPlanners(false);
+    }
+  };
 
   const handleDayToggle = (day: number) => {
     setSelectedDays(prev =>
@@ -95,7 +142,7 @@ export function AddEventDialog({
         recurrenceType: isRecurring ? recurrenceType : undefined,
         recurrenceConfig: isRecurring ? recurrenceConfig : undefined,
         endDate: isRecurring && endDate ? endDate : undefined,
-        color,
+        plannerId: selectedPlannerId || undefined,
       });
       
       // Reset form
@@ -106,7 +153,7 @@ export function AddEventDialog({
       setInterval(1);
       setSelectedDays([]);
       setEndDate('');
-      setColor('#3b82f6');
+      setSelectedPlannerId('');
       onOpenChange(false);
     } catch (error) {
       console.error('Error adding event:', error);
@@ -256,14 +303,35 @@ export function AddEventDialog({
 
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
-              Color
+              Planner *
             </label>
-            <input
-              type="color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              className="w-full h-10 rounded-lg border border-border cursor-pointer"
-            />
+            {loadingPlanners ? (
+              <div className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground">
+                Loading planners...
+              </div>
+            ) : (
+              <select
+                value={selectedPlannerId}
+                onChange={(e) => setSelectedPlannerId(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">Select a planner</option>
+                {planners.map((planner) => {
+                  const IconComponent = getIconComponent(planner.icon);
+                  return (
+                    <option key={planner._id} value={planner._id}>
+                      {planner.name}
+                    </option>
+                  );
+                })}
+              </select>
+            )}
+            {planners.length === 0 && !loadingPlanners && (
+              <p className="text-xs text-muted-foreground mt-1">
+                No planners available. Create one first.
+              </p>
+            )}
           </div>
 
           <div className="flex gap-2 pt-4">
