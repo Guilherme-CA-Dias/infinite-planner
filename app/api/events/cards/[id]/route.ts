@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import EventCard from "@/models/EventCard";
 import { z } from "zod";
+import mongoose from "mongoose";
 
 // PATCH - Update a single event card
 export async function PATCH(
@@ -63,7 +64,9 @@ export async function PATCH(
 			}
 		}
 		if (updates.plannerId !== undefined) {
-			card.plannerId = updates.plannerId || undefined;
+			card.plannerId = updates.plannerId
+				? new mongoose.Types.ObjectId(updates.plannerId)
+				: undefined;
 		}
 		card.updatedAt = new Date();
 
