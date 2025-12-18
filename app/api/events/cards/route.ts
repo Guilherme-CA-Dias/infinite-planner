@@ -3,9 +3,12 @@ import connectDB from "@/lib/mongodb";
 import EventCard from "@/models/EventCard";
 import RecurringEvent from "@/models/RecurringEvent";
 import CompletedRecurringEvent from "@/models/CompletedRecurringEvent";
+import Planner from "@/models/Planner";
 import { z } from "zod";
 import { startOfDay, format, parseISO } from "date-fns";
 import { matchesRecurrence } from "@/lib/recurrence";
+import mongoose from "mongoose";
+import { randomUUID } from "crypto";
 
 // GET - Fetch event cards for a date range (generates recurring events on-the-fly)
 export async function GET(request: NextRequest) {
@@ -18,6 +21,10 @@ export async function GET(request: NextRequest) {
 		const { searchParams } = new URL(request.url);
 		const startDate = searchParams.get("startDate");
 		const endDate = searchParams.get("endDate");
+		const plannerIdsParam = searchParams.get("plannerIds");
+		const plannerIds = plannerIdsParam
+			? plannerIdsParam.split(",").filter((id) => id.trim())
+			: [];
 
 		if (!startDate || !endDate) {
 			return NextResponse.json(
@@ -28,6 +35,31 @@ export async function GET(request: NextRequest) {
 
 		await connectDB();
 
+		// If plannerIds are provided, verify the user has access to them
+		if (plannerIds.length > 0) {
+			const userObjectId = new mongoose.Types.ObjectId(userId);
+			const plannerObjectIds = plannerIds.map(
+				(id) => new mongoose.Types.ObjectId(id)
+			);
+
+			// Check if user owns or has access to all requested planners
+			const accessiblePlanners = await Planner.find({
+				_id: { $in: plannerObjectIds },
+				$or: [
+					{ userId: userObjectId }, // User owns the planner
+					{ shareWith: userObjectId }, // Planner is shared with user
+				],
+			});
+
+			// If user doesn't have access to all requested planners, return error
+			if (accessiblePlanners.length !== plannerIds.length) {
+				return NextResponse.json(
+					{ error: "Access denied to one or more planners" },
+					{ status: 403 }
+				);
+			}
+		}
+
 		// Parse startDate and endDate - they are ISO strings from the frontend
 		// We need to work with local dates for iteration (what user sees), but store as UTC
 		const startDateObj = new Date(startDate);
@@ -36,25 +68,58 @@ export async function GET(request: NextRequest) {
 		const start = startOfDay(startDateObj);
 		const end = startOfDay(endDateObj);
 
-		// Fetch all single event cards (non-recurring or modified recurring)
-		const singleCards = await EventCard.find({
-			userId,
+		// Build query for single event cards
+		// When plannerIds are provided, filter by plannerId only (not userId)
+		// This allows shared users to see events in shared planners
+		const singleCardsQuery: Record<string, unknown> = {
 			date: {
 				$gte: start,
 				$lte: end,
 			},
-		}).sort({ date: 1, createdAt: 1 });
+		};
 
-		// Fetch all recurring events
-		const recurringEvents = await RecurringEvent.find({
-			userId,
-			$or: [{ endDate: { $exists: false } }, { endDate: { $gte: start } }],
-			startDate: { $lte: end },
+		// Filter by plannerIds if provided
+		if (plannerIds.length > 0) {
+			// Convert plannerIds strings to ObjectIds for proper query matching
+			const plannerObjectIds = plannerIds.map(
+				(id) => new mongoose.Types.ObjectId(id)
+			);
+			singleCardsQuery.plannerId = { $in: plannerObjectIds };
+		} else {
+			// If no plannerIds provided, filter by userId (user's own events)
+			singleCardsQuery.userId = userId;
+		}
+
+		const singleCards = await EventCard.find(singleCardsQuery).sort({
+			date: 1,
+			createdAt: 1,
 		});
 
+		// Build query for recurring events
+		// When plannerIds are provided, filter by plannerId only (not userId)
+		// This allows shared users to see events in shared planners
+		const recurringEventsQuery: Record<string, unknown> = {
+			$or: [{ endDate: { $exists: false } }, { endDate: { $gte: start } }],
+			startDate: { $lte: end },
+		};
+
+		// Filter by plannerIds if provided
+		if (plannerIds.length > 0) {
+			// Convert plannerIds strings to ObjectIds for proper query matching
+			const plannerObjectIds = plannerIds.map(
+				(id) => new mongoose.Types.ObjectId(id)
+			);
+			recurringEventsQuery.plannerId = { $in: plannerObjectIds };
+		} else {
+			// If no plannerIds provided, filter by userId (user's own events)
+			recurringEventsQuery.userId = userId;
+		}
+
+		const recurringEvents = await RecurringEvent.find(recurringEventsQuery);
+
 		// Fetch all completed recurring event dates
+		// Filter by recurring event IDs (not userId) to get completions for events in the requested planners
 		const completedRecurringEvents = await CompletedRecurringEvent.find({
-			userId,
 			recurringEventId: { $in: recurringEvents.map((e) => e._id) },
 		});
 
@@ -84,6 +149,7 @@ export async function GET(request: NextRequest) {
 			completed: boolean;
 			color: string;
 			recurringEventId: string;
+			plannerId?: string;
 			isGenerated: boolean;
 		}> = [];
 		const dateMap = new Map<string, Set<string>>(); // Track which recurring events already have cards for each date
@@ -211,6 +277,7 @@ export async function GET(request: NextRequest) {
 						completed: isCompleted,
 						color: recurringEvent.color || "#3b82f6",
 						recurringEventId: recurringEvent._id.toString(),
+						plannerId: recurringEvent.plannerId?.toString(),
 						isGenerated: true,
 					});
 				}
@@ -219,20 +286,48 @@ export async function GET(request: NextRequest) {
 			}
 		}
 
+		// Fetch all planners for this user to get colors (owned and shared)
+		const userObjectId = new mongoose.Types.ObjectId(userId);
+		const ownedPlanners = await Planner.find({ userId: userObjectId });
+		const sharedPlanners = await Planner.find({ shareWith: userObjectId });
+		const allPlanners = [...ownedPlanners, ...sharedPlanners];
+		const plannerMap = new Map<string, { color: string }>();
+		allPlanners.forEach((planner) => {
+			plannerMap.set(planner._id.toString(), { color: planner.color });
+		});
+
 		// Merge single cards with generated cards, prioritizing stored cards
 		// Use activeCards (filtered to exclude deleted ones)
 		const allCards = [
-			...activeCards.map((card) => ({
-				_id: card._id.toString(),
-				title: card.title,
-				description: card.description,
-				date: card.date.toISOString(),
-				completed: card.completed,
-				color: card.color,
-				recurringEventId: card.recurringEventId?.toString(),
-				isGenerated: false,
-			})),
-			...generatedCards,
+			...activeCards.map((card) => {
+				const plannerId = card.plannerId?.toString();
+				const planner = plannerId ? plannerMap.get(plannerId) : null;
+				return {
+					_id: card._id.toString(),
+					title: card.title,
+					description: card.description,
+					date: card.date.toISOString(),
+					completed: card.completed,
+					color: card.color,
+					plannerId: plannerId,
+					plannerColor: planner?.color,
+					recurringEventId: card.recurringEventId?.toString(),
+					isGenerated: false,
+				};
+			}),
+			...generatedCards.map((card) => {
+				// For generated cards, get planner from recurring event
+				const recurringEvent = recurringEvents.find(
+					(re) => re._id.toString() === card.recurringEventId
+				);
+				const plannerId = recurringEvent?.plannerId?.toString();
+				const planner = plannerId ? plannerMap.get(plannerId) : null;
+				return {
+					...card,
+					plannerId: plannerId,
+					plannerColor: planner?.color,
+				};
+			}),
 		];
 
 		// Remove duplicates (if a stored card exists, remove the generated one)
@@ -618,12 +713,12 @@ export async function POST(request: NextRequest) {
 		}
 
 		const body = await request.json();
-		const { title, description, date, color } = z
+		const { title, description, date, plannerId } = z
 			.object({
 				title: z.string().min(1, "Title is required"),
 				description: z.string().optional(),
 				date: z.string().or(z.date()),
-				color: z.string().optional(),
+				plannerId: z.string().optional(),
 			})
 			.parse(body);
 
@@ -652,29 +747,19 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		// Check if a card already exists for this user and date (non-recurring)
-		const existingCard = await EventCard.findOne({
-			userId,
-			date: cardDate,
-			$or: [
-				{ recurringEventId: null },
-				{ recurringEventId: { $exists: false } },
-			],
-		});
-
-		if (existingCard) {
-			return NextResponse.json(
-				{ error: "An event already exists on this date" },
-				{ status: 409 }
-			);
-		}
+		// For non-recurring events, set a unique ObjectId as recurringEventId
+		// This prevents the unique index from enforcing one event per user per day
+		// The unique index only applies to actual recurring events (when recurringEventId matches a real RecurringEvent)
+		// By using a unique ObjectId for each non-recurring event, we bypass the uniqueness constraint
+		const nonRecurringEventId = new mongoose.Types.ObjectId();
 
 		const card = await EventCard.create({
 			userId,
 			title,
 			description,
 			date: cardDate,
-			color: color || "#3b82f6",
+			plannerId: plannerId || undefined,
+			recurringEventId: nonRecurringEventId, // Use unique ObjectId for non-recurring events
 		});
 
 		return NextResponse.json({ card }, { status: 201 });

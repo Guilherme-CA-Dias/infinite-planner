@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import { format, parseISO, subDays, addDays } from "date-fns";
+import { format, subDays, addDays } from "date-fns";
 import { DayEvent } from "@/types/event";
 
 interface EventCardData {
@@ -10,6 +10,8 @@ interface EventCardData {
 	completed: boolean;
 	color?: string;
 	recurringEventId?: string;
+	plannerId?: string;
+	plannerColor?: string;
 }
 
 export function useEvents(userId: string) {
@@ -18,14 +20,23 @@ export function useEvents(userId: string) {
 	const isFetchingRef = useRef(false);
 
 	const fetchEvents = useCallback(
-		async (startDate: Date, endDate: Date, merge: boolean = false) => {
+		async (
+			startDate: Date,
+			endDate: Date,
+			merge: boolean = false,
+			plannerIds?: string[]
+		) => {
 			// Prevent multiple simultaneous fetches
 			if (isFetchingRef.current && !merge) return;
 
 			isFetchingRef.current = true;
 			try {
+				const plannerIdsParam =
+					plannerIds && plannerIds.length > 0
+						? `&plannerIds=${plannerIds.join(",")}`
+						: "";
 				const response = await fetch(
-					`/api/events/cards?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`,
+					`/api/events/cards?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}${plannerIdsParam}`,
 					{
 						headers: {
 							"x-user-id": userId,
@@ -57,6 +68,8 @@ export function useEvents(userId: string) {
 							completed: card.completed,
 							color: card.color,
 							recurringEventId: card.recurringEventId,
+							plannerId: card.plannerId,
+							plannerColor: card.plannerColor,
 						};
 					}
 				);
@@ -137,7 +150,7 @@ export function useEvents(userId: string) {
 			recurrenceType?: string;
 			recurrenceConfig?: { interval?: number; days?: number[] };
 			endDate?: string;
-			color?: string;
+			plannerId?: string;
 		}) => {
 			try {
 				if (eventData.recurrenceType) {
@@ -154,7 +167,8 @@ export function useEvents(userId: string) {
 							recurrenceType: eventData.recurrenceType,
 							recurrenceConfig: eventData.recurrenceConfig || {},
 							startDate: eventData.date,
-							color: eventData.color,
+							endDate: eventData.endDate,
+							plannerId: eventData.plannerId,
 						}),
 					});
 
@@ -174,7 +188,7 @@ export function useEvents(userId: string) {
 							title: eventData.title,
 							description: eventData.description,
 							date: eventData.date,
-							color: eventData.color,
+							plannerId: eventData.plannerId,
 						}),
 					});
 
@@ -273,7 +287,7 @@ export function useEvents(userId: string) {
 				title?: string;
 				description?: string;
 				date?: string;
-				color?: string;
+				plannerId?: string;
 			},
 			scope: "this" | "future" | "all" = "this"
 		) => {

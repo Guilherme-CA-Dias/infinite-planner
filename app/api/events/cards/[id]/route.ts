@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import EventCard from "@/models/EventCard";
 import { z } from "zod";
+import mongoose from "mongoose";
 
 // PATCH - Update a single event card
 export async function PATCH(
@@ -22,7 +23,7 @@ export async function PATCH(
 					title: z.string().optional(),
 					description: z.string().optional(),
 					date: z.string().or(z.date()).optional(),
-					color: z.string().optional(),
+					plannerId: z.string().optional(),
 				}),
 			})
 			.parse(body);
@@ -62,7 +63,11 @@ export async function PATCH(
 				);
 			}
 		}
-		if (updates.color) card.color = updates.color;
+		if (updates.plannerId !== undefined) {
+			card.plannerId = updates.plannerId
+				? new mongoose.Types.ObjectId(updates.plannerId)
+				: undefined;
+		}
 		card.updatedAt = new Date();
 
 		await card.save();

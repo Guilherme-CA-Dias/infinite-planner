@@ -13,7 +13,7 @@ const recurringEventSchema = z.object({
   }),
   startDate: z.string().or(z.date()),
   endDate: z.string().or(z.date()).optional(),
-  color: z.string().optional(),
+  plannerId: z.string().optional(),
 });
 
 // GET - Fetch all recurring events for a user
@@ -93,9 +93,13 @@ export async function POST(request: NextRequest) {
     // Create recurring event (no cards are created - they're generated on-the-fly)
     const recurringEvent = await RecurringEvent.create({
       userId,
-      ...data,
+      title: data.title,
+      description: data.description,
+      recurrenceType: data.recurrenceType,
+      recurrenceConfig: data.recurrenceConfig,
       startDate: startDateUTC,
       endDate: endDateUTC,
+      plannerId: data.plannerId || undefined,
     });
 
     return NextResponse.json(
