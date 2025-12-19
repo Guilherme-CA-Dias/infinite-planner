@@ -403,149 +403,54 @@ export async function PATCH(request: NextRequest) {
 			const recurringEventId = parts[1];
 			const dateKey = parts[2];
 
-			// Check if a card already exists for this recurring event on this date
-			// Parse dateKey as UTC to avoid timezone issues (dateKey is "yyyy-MM-dd")
-			const [year, month, day] = dateKey.split("-").map(Number);
-			const dateKeyUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-			let card = await EventCard.findOne({
-				userId,
-				recurringEventId,
-				date: dateKeyUTC,
-			});
+			// Verify the recurring event exists
+			const recurringEvent = await RecurringEvent.findById(recurringEventId);
+			if (!recurringEvent) {
+				return NextResponse.json(
+					{ error: "Recurring event not found" },
+					{ status: 404 }
+				);
+			}
 
-			if (!card) {
-				// Create a new card for this recurring event instance
-				const recurringEvent = await RecurringEvent.findById(recurringEventId);
-				if (!recurringEvent) {
-					return NextResponse.json(
-						{ error: "Recurring event not found" },
-						{ status: 404 }
-					);
-				}
+			// For generated recurring event cards, we only track completion status
+			// We don't create a new EventCard - the card is generated on-the-fly
+			if (updates.completed !== undefined) {
+				// Use the dateKey directly (from the virtual ID) to avoid timezone issues
+				// dateKey is in format "yyyy-MM-dd", create UTC date at midnight
+				const [year, month, day] = dateKey.split("-").map(Number);
+				const eventDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+				const dateStr = dateKey; // Use the original dateKey string directly
 
-				// Parse date as UTC to avoid timezone issues
-				const cardDate = updates.date
-					? typeof updates.date === "string" &&
-					  updates.date.match(/^\d{4}-\d{2}-\d{2}$/)
-						? (() => {
-								const [y, m, d] = updates.date.split("-").map(Number);
-								return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
-						  })()
-						: (() => {
-								const dateObj = new Date(updates.date);
-								return new Date(
-									Date.UTC(
-										dateObj.getUTCFullYear(),
-										dateObj.getUTCMonth(),
-										dateObj.getUTCDate(),
-										0,
-										0,
-										0,
-										0
-									)
-								);
-						  })()
-					: dateKeyUTC;
-
-				card = await EventCard.create({
+				let completedRecurring = await CompletedRecurringEvent.findOne({
 					userId,
 					recurringEventId,
-					title: recurringEvent.title,
-					description: recurringEvent.description,
-					date: cardDate,
-					color: recurringEvent.color || "#3b82f6",
-					completed: false,
 				});
-			}
 
-			// Update the card
-			if (updates.date) {
-				// Parse date as UTC to avoid timezone issues
-				const dateValue = updates.date;
-				if (
-					typeof dateValue === "string" &&
-					dateValue.match(/^\d{4}-\d{2}-\d{2}$/)
-				) {
-					const [year, month, day] = dateValue.split("-").map(Number);
-					card.date = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-				} else {
-					const dateObj = new Date(dateValue);
-					card.date = new Date(
-						Date.UTC(
-							dateObj.getUTCFullYear(),
-							dateObj.getUTCMonth(),
-							dateObj.getUTCDate(),
-							0,
-							0,
-							0,
-							0
-						)
-					);
-				}
-			}
-			if (updates.completed !== undefined) {
-				card.completed = updates.completed;
-				card.completedAt = updates.completed ? new Date() : undefined;
-
-				// If this is a recurring event, track completion in CompletedRecurringEvent
-				if (recurringEventId) {
-					// Use the dateKey directly (from the virtual ID) to avoid timezone issues
-					// dateKey is in format "yyyy-MM-dd", create UTC date at midnight
-					const [year, month, day] = dateKey.split("-").map(Number);
-					const eventDate = new Date(
-						Date.UTC(year, month - 1, day, 0, 0, 0, 0)
-					);
-					const dateStr = dateKey; // Use the original dateKey string directly
-
-					let completedRecurring = await CompletedRecurringEvent.findOne({
+				if (!completedRecurring) {
+					completedRecurring = await CompletedRecurringEvent.create({
 						userId,
 						recurringEventId,
+						completedDates: [],
 					});
+				}
 
-					if (!completedRecurring) {
-						completedRecurring = await CompletedRecurringEvent.create({
-							userId,
-							recurringEventId,
-							completedDates: [],
-						});
-					}
-
-					if (updates.completed) {
-						// Add date if not already present - compare using dateKey string directly
-						// Also remove any duplicates that might exist
-						const dateStr = dateKey; // Use the original dateKey string directly
-						const alreadyCompleted = completedRecurring.completedDates.some(
-							(d) => {
-								const dObj = new Date(d);
-								const dStr = `${dObj.getUTCFullYear()}-${String(
-									dObj.getUTCMonth() + 1
-								).padStart(2, "0")}-${String(dObj.getUTCDate()).padStart(
-									2,
-									"0"
-								)}`;
-								return dStr === dateStr;
-							}
-						);
-						if (!alreadyCompleted) {
-							// Remove any potential duplicates first (shouldn't happen, but just in case)
-							completedRecurring.completedDates =
-								completedRecurring.completedDates.filter((d) => {
-									const dObj = new Date(d);
-									const dStr = `${dObj.getUTCFullYear()}-${String(
-										dObj.getUTCMonth() + 1
-									).padStart(2, "0")}-${String(dObj.getUTCDate()).padStart(
-										2,
-										"0"
-									)}`;
-									return dStr !== dateStr;
-								});
-							// Now add the date
-							completedRecurring.completedDates.push(eventDate);
-							completedRecurring.updatedAt = new Date();
-							await completedRecurring.save();
+				if (updates.completed) {
+					// Add date if not already present - compare using dateKey string directly
+					// Also remove any duplicates that might exist
+					const alreadyCompleted = completedRecurring.completedDates.some(
+						(d) => {
+							const dObj = new Date(d);
+							const dStr = `${dObj.getUTCFullYear()}-${String(
+								dObj.getUTCMonth() + 1
+							).padStart(2, "0")}-${String(dObj.getUTCDate()).padStart(
+								2,
+								"0"
+							)}`;
+							return dStr === dateStr;
 						}
-					} else {
-						// Remove date if present - compare using dateKey string directly
+					);
+					if (!alreadyCompleted) {
+						// Remove any potential duplicates first (shouldn't happen, but just in case)
 						completedRecurring.completedDates =
 							completedRecurring.completedDates.filter((d) => {
 								const dObj = new Date(d);
@@ -557,21 +462,59 @@ export async function PATCH(request: NextRequest) {
 								)}`;
 								return dStr !== dateStr;
 							});
+						// Now add the date
+						completedRecurring.completedDates.push(eventDate);
 						completedRecurring.updatedAt = new Date();
 						await completedRecurring.save();
 					}
+				} else {
+					// Remove date if present - compare using dateKey string directly
+					completedRecurring.completedDates =
+						completedRecurring.completedDates.filter((d) => {
+							const dObj = new Date(d);
+							const dStr = `${dObj.getUTCFullYear()}-${String(
+								dObj.getUTCMonth() + 1
+							).padStart(2, "0")}-${String(dObj.getUTCDate()).padStart(
+								2,
+								"0"
+							)}`;
+							return dStr !== dateStr;
+						});
+					completedRecurring.updatedAt = new Date();
+					await completedRecurring.save();
 				}
-			}
-			if (updates.title) {
-				card.title = updates.title;
-			}
-			if (updates.description !== undefined) {
-				card.description = updates.description;
-			}
-			card.updatedAt = new Date();
 
-			await card.save();
-			return NextResponse.json({ card }, { status: 200 });
+				// Return a response that matches the expected format
+				// Since this is a generated card, we return the recurring event info
+				return NextResponse.json(
+					{
+						card: {
+							_id: cardId,
+							userId,
+							recurringEventId,
+							title: recurringEvent.title,
+							description: recurringEvent.description,
+							date: eventDate,
+							completed: updates.completed,
+							completedAt: updates.completed ? new Date() : undefined,
+							color: recurringEvent.color || "#3b82f6",
+							plannerId: recurringEvent.plannerId || undefined,
+							isGenerated: true,
+						},
+					},
+					{ status: 200 }
+				);
+			}
+
+			// If updating something other than completion, return error
+			// Generated cards can only be completed/uncompleted
+			return NextResponse.json(
+				{
+					error:
+						"Generated recurring event cards can only be marked as completed or uncompleted",
+				},
+				{ status: 400 }
+			);
 		}
 
 		// Regular card update
