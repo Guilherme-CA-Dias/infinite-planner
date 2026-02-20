@@ -2,6 +2,11 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export type RecurrenceType = 'daily' | 'everyXDays' | 'daysOfWeek';
 
+const ORDER_MIN = 10000;
+const ORDER_MAX = 100000;
+const randomOrder = () =>
+  Math.floor(ORDER_MIN + Math.random() * (ORDER_MAX - ORDER_MIN + 1));
+
 export interface IRecurringEvent extends Document {
   userId: mongoose.Types.ObjectId;
   plannerId?: mongoose.Types.ObjectId;
@@ -17,6 +22,7 @@ export interface IRecurringEvent extends Document {
   startDate: Date;
   endDate?: Date;
   color?: string;
+  order?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -71,6 +77,11 @@ const RecurringEventSchema: Schema = new Schema({
   plannerId: {
     type: Schema.Types.ObjectId,
     ref: 'Planner',
+    index: true,
+  },
+  order: {
+    type: Number,
+    default: randomOrder,
     index: true,
   },
   createdAt: {

@@ -47,6 +47,7 @@ export function KanbanBoard({
 		fetchEvents,
 		deleteEvent,
 		updateEvent,
+		reorderEvents,
 	} = useEvents(userId);
 	const [selectedDate, setSelectedDate] = useState<string | undefined>();
 	const [editEvent, setEditEvent] = useState<DayEvent | null>(null);
@@ -379,6 +380,10 @@ export function KanbanBoard({
 		}
 	};
 
+	const handleReorder = (orderedEvents: DayEvent[], activeId: string) => {
+		reorderEvents(orderedEvents, activeId);
+	};
+
 	return (
 		<div className="relative h-full overflow-hidden">
 			{/* Navigation arrows - hidden on mobile, visible on larger screens */}
@@ -413,6 +418,7 @@ export function KanbanBoard({
 						onAddEvent={handleAddEvent}
 						onEditEvent={handleEditEvent}
 						onDeleteEvent={handleDeleteEvent}
+						onReorder={handleReorder}
 					/>
 				))}
 			</div>
