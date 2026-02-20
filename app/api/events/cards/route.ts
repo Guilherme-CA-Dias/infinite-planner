@@ -456,7 +456,7 @@ export async function PATCH(request: NextRequest) {
 				const eventDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
 				const dateStr = dateKey;
 
-				let completedRecurring = await CompletedRecurringEvent.findOne({
+				const completedRecurring = await CompletedRecurringEvent.findOne({
 					userId,
 					recurringEventId,
 				});
