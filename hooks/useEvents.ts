@@ -119,6 +119,9 @@ export function useEvents(userId: string) {
 			if (!hasOrder) return dayEvents;
 
 			return dayEvents.sort((a, b) => {
+				if (a.completed !== b.completed) {
+					return a.completed ? 1 : -1;
+				}
 				const orderA =
 					typeof a.order === "number" ? a.order : Number.MAX_SAFE_INTEGER;
 				const orderB =

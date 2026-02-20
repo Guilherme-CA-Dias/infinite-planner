@@ -4,6 +4,7 @@ export interface ICompletedRecurringEvent extends Document {
   userId: mongoose.Types.ObjectId;
   recurringEventId: mongoose.Types.ObjectId;
   completedDates: Date[]; // Array of dates when the event was completed
+  completedOrders: { date: Date; order: number }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +24,15 @@ const CompletedRecurringEventSchema: Schema = new Schema({
   },
   completedDates: {
     type: [Date],
+    default: [],
+  },
+  completedOrders: {
+    type: [
+      {
+        date: { type: Date, required: true },
+        order: { type: Number, required: true },
+      },
+    ],
     default: [],
   },
   createdAt: {

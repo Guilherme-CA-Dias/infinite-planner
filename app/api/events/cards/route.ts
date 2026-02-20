@@ -136,6 +136,7 @@ export async function GET(request: NextRequest) {
 
 		// Create a map of recurringEventId -> Set of completed dates (as date strings)
 		const completedDatesMap = new Map<string, Set<string>>();
+		const completedOrderMap = new Map<string, number>();
 		completedRecurringEvents.forEach((completed) => {
 			const recurringId = completed.recurringEventId.toString();
 			if (!completedDatesMap.has(recurringId)) {
@@ -148,6 +149,13 @@ export async function GET(request: NextRequest) {
 					dateObj.getUTCMonth() + 1
 				).padStart(2, "0")}-${String(dateObj.getUTCDate()).padStart(2, "0")}`;
 				completedDatesMap.get(recurringId)!.add(dateStr);
+			});
+			completed.completedOrders?.forEach((item) => {
+				const dateObj = new Date(item.date);
+				const dateStr = `${dateObj.getUTCFullYear()}-${String(
+					dateObj.getUTCMonth() + 1
+				).padStart(2, "0")}-${String(dateObj.getUTCDate()).padStart(2, "0")}`;
+				completedOrderMap.set(`${recurringId}_${dateStr}`, item.order);
 			});
 		});
 
@@ -281,6 +289,9 @@ export async function GET(request: NextRequest) {
 					const isCompleted =
 						completedDatesMap.has(recurringId) &&
 						completedDatesMap.get(recurringId)!.has(utcDateStr);
+					const completedOrder = completedOrderMap.get(
+						`${recurringId}_${utcDateStr}`
+					);
 
 					// Generate a virtual card (not stored in DB)
 					// Store the date as UTC to match how we store other dates
@@ -293,7 +304,10 @@ export async function GET(request: NextRequest) {
 						color: recurringEvent.color || "#3b82f6",
 						recurringEventId: recurringEvent._id.toString(),
 						plannerId: recurringEvent.plannerId?.toString(),
-						order: recurringEvent.order ?? randomOrder(),
+						order:
+							isCompleted && typeof completedOrder === "number"
+								? completedOrder
+								: recurringEvent.order ?? undefined,
 						isGenerated: true,
 					});
 				}
@@ -438,6 +452,65 @@ export async function PATCH(request: NextRequest) {
 			// For generated recurring event cards, we only track completion status and order
 			// We don't create a new EventCard - the card is generated on-the-fly
 			if (updates.order !== undefined) {
+				const [year, month, day] = dateKey.split("-").map(Number);
+				const eventDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+				const dateStr = dateKey;
+
+				let completedRecurring = await CompletedRecurringEvent.findOne({
+					userId,
+					recurringEventId,
+				});
+
+				if (completedRecurring) {
+					const isCompleted = completedRecurring.completedDates.some((d) => {
+						const dObj = new Date(d);
+						const dStr = `${dObj.getUTCFullYear()}-${String(
+							dObj.getUTCMonth() + 1
+						).padStart(2, "0")}-${String(dObj.getUTCDate()).padStart(
+							2,
+							"0"
+						)}`;
+						return dStr === dateStr;
+					});
+
+					if (isCompleted) {
+						const newOrder = clampOrder(updates.order);
+						const filtered = completedRecurring.completedOrders.filter((o) => {
+							const oObj = new Date(o.date);
+							const oStr = `${oObj.getUTCFullYear()}-${String(
+								oObj.getUTCMonth() + 1
+							).padStart(2, "0")}-${String(oObj.getUTCDate()).padStart(
+								2,
+								"0"
+							)}`;
+							return oStr !== dateStr;
+						});
+						filtered.push({ date: eventDate, order: newOrder });
+						completedRecurring.completedOrders = filtered;
+						completedRecurring.updatedAt = new Date();
+						await completedRecurring.save();
+
+						return NextResponse.json(
+							{
+								card: {
+									_id: cardId,
+									userId,
+									recurringEventId,
+									title: recurringEvent.title,
+									description: recurringEvent.description,
+									date: eventDate,
+									completed: true,
+									color: recurringEvent.color || "#3b82f6",
+									plannerId: recurringEvent.plannerId || undefined,
+									isGenerated: true,
+									order: newOrder,
+								},
+							},
+							{ status: 200 }
+						);
+					}
+				}
+
 				recurringEvent.order = clampOrder(updates.order);
 				recurringEvent.updatedAt = new Date();
 				await recurringEvent.save();
@@ -512,6 +585,31 @@ export async function PATCH(request: NextRequest) {
 							});
 						// Now add the date
 						completedRecurring.completedDates.push(eventDate);
+						if (!completedRecurring.completedOrders) {
+							completedRecurring.completedOrders = [];
+						}
+						const existingOrderEntry = completedRecurring.completedOrders.find(
+							(o) => {
+								const oObj = new Date(o.date);
+								const oStr = `${oObj.getUTCFullYear()}-${String(
+									oObj.getUTCMonth() + 1
+								).padStart(2, "0")}-${String(oObj.getUTCDate()).padStart(
+									2,
+									"0"
+								)}`;
+								return oStr === dateStr;
+							}
+						);
+						if (!existingOrderEntry) {
+							const baseOrder =
+								typeof recurringEvent.order === "number"
+									? recurringEvent.order
+									: randomOrder();
+							completedRecurring.completedOrders.push({
+								date: eventDate,
+								order: clampOrder(baseOrder),
+							});
+						}
 						completedRecurring.updatedAt = new Date();
 						await completedRecurring.save();
 					}
@@ -528,6 +626,17 @@ export async function PATCH(request: NextRequest) {
 							)}`;
 							return dStr !== dateStr;
 						});
+					completedRecurring.completedOrders =
+						completedRecurring.completedOrders?.filter((o) => {
+							const oObj = new Date(o.date);
+							const oStr = `${oObj.getUTCFullYear()}-${String(
+								oObj.getUTCMonth() + 1
+							).padStart(2, "0")}-${String(oObj.getUTCDate()).padStart(
+								2,
+								"0"
+							)}`;
+							return oStr !== dateStr;
+						}) || [];
 					completedRecurring.updatedAt = new Date();
 					await completedRecurring.save();
 				}
