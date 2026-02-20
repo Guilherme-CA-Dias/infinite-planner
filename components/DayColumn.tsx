@@ -4,6 +4,22 @@ import { EventCard } from './EventCard';
 import { Plus } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  closestCenter,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface DayColumnProps {
   date: string;
@@ -12,9 +28,69 @@ interface DayColumnProps {
   onAddEvent: (date: string) => void;
   onEditEvent: (event: DayEvent) => void;
   onDeleteEvent: (event: DayEvent) => void;
+  onReorder: (orderedEvents: DayEvent[], activeId: string) => void;
 }
 
-export function DayColumn({ date, events, onToggleComplete, onAddEvent, onEditEvent, onDeleteEvent }: DayColumnProps) {
+function SortableEventCard({
+  event,
+  onToggleComplete,
+  onEdit,
+  onDelete,
+  animationDelay,
+}: {
+  event: DayEvent;
+  onToggleComplete: (id: string) => void;
+  onEdit: (event: DayEvent) => void;
+  onDelete: (event: DayEvent) => void;
+  animationDelay?: number;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: event.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={cn(
+        'touch-none select-none transition-shadow',
+        isDragging && 'opacity-80 rounded-xl shadow-[0_0_0_2px_rgba(59,130,246,0.35),0_10px_30px_-18px_rgba(59,130,246,0.6)]'
+      )}
+    >
+      <EventCard
+        event={event}
+        onToggleComplete={onToggleComplete}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        animationDelay={animationDelay}
+      />
+    </div>
+  );
+}
+
+export function DayColumn({
+  date,
+  events,
+  onToggleComplete,
+  onAddEvent,
+  onEditEvent,
+  onDeleteEvent,
+  onReorder,
+}: DayColumnProps) {
   const dateObj = parseISO(date);
   const today = isToday(dateObj);
   const tomorrow = isTomorrow(dateObj);
@@ -30,6 +106,26 @@ export function DayColumn({ date, events, onToggleComplete, onAddEvent, onEditEv
 
   const completedCount = events.filter(e => e.completed).length;
   const totalCount = events.length;
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { delay: 200, tolerance: 5 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 650, tolerance: 8 },
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = events.findIndex((item) => item.id === active.id);
+    const newIndex = events.findIndex((item) => item.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    const reorderedEvents = arrayMove(events, oldIndex, newIndex);
+    onReorder(reorderedEvents, String(active.id));
+  };
 
   return (
     <div 
@@ -85,16 +181,27 @@ export function DayColumn({ date, events, onToggleComplete, onAddEvent, onEditEv
 
       {/* Events list */}
       <div className="flex-1 px-1 space-y-2 md:space-y-3 pb-4 md:pb-6">
-        {events.map((event, index) => (
-          <EventCard
-            key={event.id}
-            event={event}
-            onToggleComplete={onToggleComplete}
-            onEdit={onEditEvent}
-            onDelete={onDeleteEvent}
-            animationDelay={index * 50}
-          />
-        ))}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={events.map((event) => event.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {events.map((event, index) => (
+              <SortableEventCard
+                key={event.id}
+                event={event}
+                onToggleComplete={onToggleComplete}
+                onEdit={onEditEvent}
+                onDelete={onDeleteEvent}
+                animationDelay={index * 50}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
         {/* Add event button */}
         <Button
           variant="ghost"
@@ -119,4 +226,3 @@ export function DayColumn({ date, events, onToggleComplete, onAddEvent, onEditEv
     </div>
   );
 }
-

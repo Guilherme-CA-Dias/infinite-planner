@@ -3,6 +3,12 @@ import connectDB from '@/lib/mongodb';
 import RecurringEvent from '@/models/RecurringEvent';
 import { z } from 'zod';
 
+const ORDER_MIN = 10000;
+const ORDER_MAX = 100000;
+
+const randomOrder = () =>
+  Math.floor(ORDER_MIN + Math.random() * (ORDER_MAX - ORDER_MIN + 1));
+
 const recurringEventSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
@@ -100,6 +106,7 @@ export async function POST(request: NextRequest) {
       startDate: startDateUTC,
       endDate: endDateUTC,
       plannerId: data.plannerId || undefined,
+      order: randomOrder(),
     });
 
     return NextResponse.json(

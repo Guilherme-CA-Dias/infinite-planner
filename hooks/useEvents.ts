@@ -12,12 +12,23 @@ interface EventCardData {
 	recurringEventId?: string;
 	plannerId?: string;
 	plannerColor?: string;
+	order?: number;
+	isGenerated?: boolean;
+	createdAt?: string;
 }
 
 export function useEvents(userId: string) {
 	const [events, setEvents] = useState<DayEvent[]>([]);
 	const [loading, setLoading] = useState(true);
 	const isFetchingRef = useRef(false);
+	const ORDER_MIN = 10000;
+	const ORDER_MAX = 100000;
+
+	const randomOrder = () =>
+		Math.floor(ORDER_MIN + Math.random() * (ORDER_MAX - ORDER_MIN + 1));
+
+	const clampOrder = (value: number) =>
+		Math.min(ORDER_MAX, Math.max(ORDER_MIN, value));
 
 	const fetchEvents = useCallback(
 		async (
@@ -70,6 +81,9 @@ export function useEvents(userId: string) {
 							recurringEventId: card.recurringEventId,
 							plannerId: card.plannerId,
 							plannerColor: card.plannerColor,
+							order: card.order,
+							isGenerated: card.isGenerated,
+							createdAt: card.createdAt,
 						};
 					}
 				);
@@ -98,7 +112,24 @@ export function useEvents(userId: string) {
 
 	const getEventsForDate = useCallback(
 		(date: string): DayEvent[] => {
-			return events.filter((event) => event.date === date);
+			const dayEvents = events.filter((event) => event.date === date);
+			const hasOrder = dayEvents.some(
+				(event) => typeof event.order === "number"
+			);
+			if (!hasOrder) return dayEvents;
+
+			return dayEvents.sort((a, b) => {
+				const orderA =
+					typeof a.order === "number" ? a.order : Number.MAX_SAFE_INTEGER;
+				const orderB =
+					typeof b.order === "number" ? b.order : Number.MAX_SAFE_INTEGER;
+				if (orderA !== orderB) return orderA - orderB;
+
+				const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+				const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+				if (createdA === createdB) return 0;
+				return createdA - createdB;
+			});
 		},
 		[events]
 	);
@@ -374,6 +405,67 @@ export function useEvents(userId: string) {
 		[userId, fetchEvents]
 	);
 
+	const reorderEvents = useCallback(
+		async (orderedEvents: DayEvent[], activeId: string) => {
+			const previousEvents = events;
+			const activeIndex = orderedEvents.findIndex(
+				(event) => event.id === activeId
+			);
+			if (activeIndex < 0) return;
+
+			const prevEvent = orderedEvents[activeIndex - 1];
+			const nextEvent = orderedEvents[activeIndex + 1];
+			const prevOrder =
+				typeof prevEvent?.order === "number" ? prevEvent.order : randomOrder();
+			const nextOrder =
+				typeof nextEvent?.order === "number" ? nextEvent.order : randomOrder();
+
+			let newOrder: number;
+			if (prevEvent && nextEvent) {
+				newOrder =
+					prevOrder >= nextOrder
+						? randomOrder()
+						: prevOrder + (nextOrder - prevOrder) / 2;
+			} else if (prevEvent) {
+				newOrder = prevOrder + 1000;
+			} else if (nextEvent) {
+				newOrder = nextOrder - 1000;
+			} else {
+				newOrder = randomOrder();
+			}
+
+			newOrder = clampOrder(newOrder);
+
+			setEvents((prev) =>
+				prev.map((event) =>
+					event.id === activeId ? { ...event, order: newOrder } : event
+				)
+			);
+
+			try {
+				const response = await fetch("/api/events/cards", {
+					method: "PATCH",
+					headers: {
+						"Content-Type": "application/json",
+						"x-user-id": userId,
+					},
+					body: JSON.stringify({
+						cardId: activeId,
+						updates: { order: newOrder },
+					}),
+				});
+
+				if (!response.ok) {
+					throw new Error("Failed to reorder events");
+				}
+			} catch (error) {
+				console.error("Error reordering events:", error);
+				setEvents(previousEvents);
+			}
+		},
+		[events, userId]
+	);
+
 	return {
 		events,
 		loading,
@@ -383,5 +475,6 @@ export function useEvents(userId: string) {
 		fetchEvents,
 		deleteEvent,
 		updateEvent,
+		reorderEvents,
 	};
 }

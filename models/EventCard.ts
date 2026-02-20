@@ -1,5 +1,10 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
+const ORDER_MIN = 10000;
+const ORDER_MAX = 100000;
+const randomOrder = () =>
+  Math.floor(ORDER_MIN + Math.random() * (ORDER_MAX - ORDER_MIN + 1));
+
 export interface IEventCard extends Document {
   userId: mongoose.Types.ObjectId;
   recurringEventId?: mongoose.Types.ObjectId;
@@ -10,6 +15,7 @@ export interface IEventCard extends Document {
   completed: boolean;
   completedAt?: Date;
   color?: string;
+  order?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,6 +61,11 @@ const EventCardSchema: Schema = new Schema({
   color: {
     type: String,
     default: '#3b82f6',
+  },
+  order: {
+    type: Number,
+    default: randomOrder,
+    index: true,
   },
   createdAt: {
     type: Date,

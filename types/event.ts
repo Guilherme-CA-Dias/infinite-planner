@@ -10,5 +10,8 @@ export interface DayEvent {
   recurringEventId?: string;
   plannerId?: string;
   plannerColor?: string;
+  order?: number;
+  isGenerated?: boolean;
+  createdAt?: string;
 }
 
