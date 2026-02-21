@@ -24,6 +24,7 @@ interface KanbanBoardProps {
 	setAddEventDialogOpen: (open: boolean) => void;
 	userId: string;
 	selectedPlanners?: string[];
+	dragEnabled?: boolean;
 }
 
 const DAYS_PER_WEEK = 7;
@@ -38,6 +39,7 @@ export function KanbanBoard({
 	setAddEventDialogOpen,
 	userId,
 	selectedPlanners = [],
+	dragEnabled = false,
 }: KanbanBoardProps) {
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const {
@@ -419,6 +421,7 @@ export function KanbanBoard({
 						onEditEvent={handleEditEvent}
 						onDeleteEvent={handleDeleteEvent}
 						onReorder={handleReorder}
+						dragEnabled={dragEnabled}
 					/>
 				))}
 			</div>

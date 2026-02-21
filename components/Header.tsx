@@ -5,6 +5,8 @@ import {
 	Search,
 	Settings,
 	Menu,
+	Lock,
+	Unlock,
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -12,9 +14,17 @@ interface HeaderProps {
 	onAddEvent: () => void;
 	onTodayClick: () => void;
 	onMenuClick?: () => void;
+	dragEnabled?: boolean;
+	onToggleDrag?: () => void;
 }
 
-export function Header({ onAddEvent, onTodayClick, onMenuClick }: HeaderProps) {
+export function Header({
+	onAddEvent,
+	onTodayClick,
+	onMenuClick,
+	dragEnabled = false,
+	onToggleDrag,
+}: HeaderProps) {
 	return (
 		<header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
 			<div className="flex items-center justify-between h-14 md:h-16 px-3 md:px-6">
@@ -59,6 +69,22 @@ export function Header({ onAddEvent, onTodayClick, onMenuClick }: HeaderProps) {
 
 				{/* Right Actions */}
 				<div className="flex items-center gap-1 md:gap-2">
+					{onToggleDrag && (
+						<Button
+							variant={dragEnabled ? "soft" : "ghost"}
+							size="icon-sm"
+							onClick={onToggleDrag}
+							aria-label={
+								dragEnabled ? "Lock card movement" : "Unlock card movement"
+							}
+						>
+							{dragEnabled ? (
+								<Unlock className="w-4 h-4 text-muted-foreground" />
+							) : (
+								<Lock className="w-4 h-4 text-muted-foreground" />
+							)}
+						</Button>
+					)}
 					<Button variant="ghost" size="icon-sm" className="hidden sm:flex">
 						<Search className="w-4 h-4 text-muted-foreground" />
 					</Button>

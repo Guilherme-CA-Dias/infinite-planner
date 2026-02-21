@@ -47,6 +47,7 @@ export default function DashboardPage() {
 		}
 	}, []);
 	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+	const [dragEnabled, setDragEnabled] = useState(false);
 	const [loading, setLoading] = useState(true);
 	const todayRef = useRef<{ scrollToToday: () => void }>({
 		scrollToToday: () => {},
@@ -246,6 +247,8 @@ export default function DashboardPage() {
 				onAddEvent={() => setAddEventDialogOpen(true)}
 				onTodayClick={handleTodayClick}
 				onMenuClick={() => setIsMobileMenuOpen(true)}
+				dragEnabled={dragEnabled}
+				onToggleDrag={() => setDragEnabled((prev) => !prev)}
 			/>
 
 			{/* Main Content with Sidebar */}
@@ -278,6 +281,7 @@ export default function DashboardPage() {
 							setAddEventDialogOpen={setAddEventDialogOpen}
 							userId={userId}
 							selectedPlanners={selectedPlanners}
+							dragEnabled={dragEnabled}
 						/>
 					) : (
 						<div className="h-full overflow-y-auto p-6">
