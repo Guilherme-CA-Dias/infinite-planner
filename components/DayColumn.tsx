@@ -29,6 +29,7 @@ interface DayColumnProps {
   onEditEvent: (event: DayEvent) => void;
   onDeleteEvent: (event: DayEvent) => void;
   onReorder: (orderedEvents: DayEvent[], activeId: string) => void;
+  dragEnabled?: boolean;
 }
 
 function SortableEventCard({
@@ -37,12 +38,14 @@ function SortableEventCard({
   onEdit,
   onDelete,
   animationDelay,
+  dragEnabled = false,
 }: {
   event: DayEvent;
   onToggleComplete: (id: string) => void;
   onEdit: (event: DayEvent) => void;
   onDelete: (event: DayEvent) => void;
   animationDelay?: number;
+  dragEnabled?: boolean;
 }) {
   const {
     attributes,
@@ -53,6 +56,7 @@ function SortableEventCard({
     isDragging,
   } = useSortable({
     id: event.id,
+    disabled: !dragEnabled,
   });
 
   const style = {
@@ -64,11 +68,13 @@ function SortableEventCard({
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
+      {...(dragEnabled ? attributes : {})}
+      {...(dragEnabled ? listeners : {})}
       className={cn(
-        'touch-none select-none transition-shadow',
-        isDragging && 'opacity-80 rounded-xl shadow-[0_0_0_2px_rgba(59,130,246,0.35),0_10px_30px_-18px_rgba(59,130,246,0.6)]'
+        'select-none transition-shadow',
+        dragEnabled && 'touch-none',
+        isDragging &&
+          'opacity-80 rounded-xl shadow-[0_0_0_2px_rgba(59,130,246,0.35),0_10px_30px_-18px_rgba(59,130,246,0.6)]'
       )}
     >
       <EventCard
@@ -90,6 +96,7 @@ export function DayColumn({
   onEditEvent,
   onDeleteEvent,
   onReorder,
+  dragEnabled = false,
 }: DayColumnProps) {
   const dateObj = parseISO(date);
   const today = isToday(dateObj);
@@ -116,6 +123,7 @@ export function DayColumn({
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
+    if (!dragEnabled) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -198,6 +206,7 @@ export function DayColumn({
                 onEdit={onEditEvent}
                 onDelete={onDeleteEvent}
                 animationDelay={index * 50}
+                dragEnabled={dragEnabled}
               />
             ))}
           </SortableContext>
