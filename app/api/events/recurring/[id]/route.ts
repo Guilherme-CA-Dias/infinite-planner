@@ -33,6 +33,7 @@ export async function PATCH(
         }).optional(),
         startDate: z.string().or(z.date()).optional(),
         endDate: z.string().or(z.date()).optional(),
+        time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
         color: z.string().optional(),
       }),
     }).parse(body);
@@ -70,12 +71,14 @@ export async function PATCH(
           recurringEventId: recurringEvent._id,
           title: updates.title || recurringEvent.title,
           description: updates.description !== undefined ? updates.description : recurringEvent.description,
+          time: updates.time !== undefined ? updates.time : recurringEvent.time,
           date: startOfDay(eventDate),
           color: updates.color || recurringEvent.color,
         });
       } else {
         if (updates.title) card.title = updates.title;
         if (updates.description !== undefined) card.description = updates.description;
+        if (updates.time !== undefined) card.time = updates.time;
         if (updates.color) card.color = updates.color;
         await card.save();
       }
@@ -88,6 +91,7 @@ export async function PATCH(
       // Update the recurring event
       if (updates.title) recurringEvent.title = updates.title;
       if (updates.description !== undefined) recurringEvent.description = updates.description;
+      if (updates.time !== undefined) recurringEvent.time = updates.time;
       if (updates.recurrenceType) recurringEvent.recurrenceType = updates.recurrenceType;
       if (updates.recurrenceConfig) {
         recurringEvent.recurrenceConfig = {
@@ -146,6 +150,7 @@ export async function PATCH(
       // Modify all - update the entire recurring event
       if (updates.title) recurringEvent.title = updates.title;
       if (updates.description !== undefined) recurringEvent.description = updates.description;
+      if (updates.time !== undefined) recurringEvent.time = updates.time;
       if (updates.recurrenceType) recurringEvent.recurrenceType = updates.recurrenceType;
       if (updates.recurrenceConfig) {
         recurringEvent.recurrenceConfig = {

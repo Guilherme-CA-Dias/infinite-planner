@@ -10,6 +10,7 @@ interface EventCardData {
   date: string;
   completed: boolean;
   color?: string;
+  plannerColor?: string;
 }
 
 interface CalendarViewProps {
@@ -119,8 +120,8 @@ export default function CalendarView({ userId }: CalendarViewProps) {
                     key={card._id}
                     className="text-xs px-1 py-0.5 rounded truncate"
                     style={{
-                      backgroundColor: card.color ? `${card.color}20` : '#3b82f620',
-                      color: card.color || '#3b82f6',
+                      backgroundColor: (card.plannerColor || card.color) ? `${(card.plannerColor || card.color)}20` : '#3b82f620',
+                      color: card.plannerColor || card.color || '#3b82f6',
                     }}
                   >
                     {card.title}

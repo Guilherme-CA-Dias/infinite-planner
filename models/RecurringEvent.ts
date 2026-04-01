@@ -12,6 +12,7 @@ export interface IRecurringEvent extends Document {
   plannerId?: mongoose.Types.ObjectId;
   title: string;
   description?: string;
+  time?: string;
   recurrenceType: RecurrenceType;
   recurrenceConfig: {
     // For 'everyXDays'
@@ -40,6 +41,10 @@ const RecurringEventSchema: Schema = new Schema({
     trim: true,
   },
   description: {
+    type: String,
+    trim: true,
+  },
+  time: {
     type: String,
     trim: true,
   },

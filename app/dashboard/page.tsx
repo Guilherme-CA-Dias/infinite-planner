@@ -4,19 +4,21 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { Header } from "@/components/Header";
-import CalendarView from "@/components/CalendarView";
+import { WeeklyCalendarView } from "@/components/WeeklyCalendarView";
 import CreateEventModal from "@/components/CreateEventModal";
 import { PlannerSidebar } from "@/components/PlannerSidebar";
 import { CreatePlannerDialog } from "@/components/CreatePlannerDialog";
 import { EditPlannerDialog } from "@/components/EditPlannerDialog";
 import { DeletePlannerDialog } from "@/components/DeletePlannerDialog";
+import { SettingsDialog } from "@/components/SettingsDialog";
 
 export default function DashboardPage() {
 	const router = useRouter();
 	const [userId, setUserId] = useState<string | null>(null);
-	const [view] = useState<"kanban" | "calendar">("kanban");
+	const [view, setView] = useState<"kanban" | "week">("kanban");
 	const [showCreateModal, setShowCreateModal] = useState(false);
 	const [addEventDialogOpen, setAddEventDialogOpen] = useState(false);
+	const [settingsOpen, setSettingsOpen] = useState(false);
 	const [createPlannerDialogOpen, setCreatePlannerDialogOpen] = useState(false);
 	const [editPlannerDialogOpen, setEditPlannerDialogOpen] = useState(false);
 	const [editingPlanner, setEditingPlanner] = useState<{
@@ -247,6 +249,7 @@ export default function DashboardPage() {
 				onAddEvent={() => setAddEventDialogOpen(true)}
 				onTodayClick={handleTodayClick}
 				onMenuClick={() => setIsMobileMenuOpen(true)}
+				onSettingsClick={() => setSettingsOpen(true)}
 				dragEnabled={dragEnabled}
 				onToggleDrag={() => setDragEnabled((prev) => !prev)}
 			/>
@@ -273,21 +276,55 @@ export default function DashboardPage() {
 
 				{/* Main Content */}
 				<main className="flex-1 overflow-hidden">
-					{view === "kanban" ? (
-						<KanbanBoard
-							todayRef={todayRef}
-							onAddEventClick={() => setAddEventDialogOpen(true)}
-							addEventDialogOpen={addEventDialogOpen}
-							setAddEventDialogOpen={setAddEventDialogOpen}
-							userId={userId}
-							selectedPlanners={selectedPlanners}
-							dragEnabled={dragEnabled}
-						/>
-					) : (
-						<div className="h-full overflow-y-auto p-6">
-							<CalendarView userId={userId} />
+					<div className="h-full flex flex-col">
+						<div className="px-3 md:px-6 pt-3">
+							<div className="inline-flex rounded-xl border border-border/60 bg-card/60 backdrop-blur p-1 shadow-sm">
+								<button
+									type="button"
+									onClick={() => setView("kanban")}
+									className={`px-3 py-1.5 text-xs md:text-sm font-medium rounded-lg transition-colors ${
+										view === "kanban"
+											? "bg-primary text-primary-foreground"
+											: "text-muted-foreground hover:text-foreground"
+									}`}
+								>
+									Board
+								</button>
+								<button
+									type="button"
+									onClick={() => setView("week")}
+									className={`px-3 py-1.5 text-xs md:text-sm font-medium rounded-lg transition-colors ${
+										view === "week"
+											? "bg-primary text-primary-foreground"
+											: "text-muted-foreground hover:text-foreground"
+									}`}
+								>
+									Week
+								</button>
+							</div>
 						</div>
-					)}
+
+						<div className="flex-1 overflow-hidden">
+							{view === "kanban" ? (
+								<KanbanBoard
+									todayRef={todayRef}
+									onAddEventClick={() => setAddEventDialogOpen(true)}
+									addEventDialogOpen={addEventDialogOpen}
+									setAddEventDialogOpen={setAddEventDialogOpen}
+									userId={userId}
+									selectedPlanners={selectedPlanners}
+									dragEnabled={dragEnabled}
+								/>
+							) : (
+								<WeeklyCalendarView
+									userId={userId}
+									selectedPlanners={selectedPlanners}
+									addEventDialogOpen={addEventDialogOpen}
+									setAddEventDialogOpen={setAddEventDialogOpen}
+								/>
+							)}
+						</div>
+					</div>
 				</main>
 			</div>
 
@@ -336,6 +373,9 @@ export default function DashboardPage() {
 				onConfirm={handleDeletePlannerConfirm}
 				loading={deleteLoading}
 			/>
+
+			{/* Settings */}
+			<SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
 		</div>
 	);
 }

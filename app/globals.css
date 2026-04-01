@@ -87,6 +87,32 @@ body {
   display: none;
 }
 
+/* Styled scrollbar (matches app look) */
+.scrollbar-app {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.6) transparent; /* slate-400-ish */
+}
+
+.scrollbar-app::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.scrollbar-app::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-app::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.55);
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+.scrollbar-app::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.75);
+}
+
 /* Mobile touch improvements */
 .touch-manipulation {
   touch-action: manipulation;

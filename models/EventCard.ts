@@ -12,6 +12,7 @@ export interface IEventCard extends Document {
   title: string;
   description?: string;
   date: Date;
+  time?: string;
   completed: boolean;
   completedAt?: Date;
   color?: string;
@@ -50,6 +51,10 @@ const EventCardSchema: Schema = new Schema({
     type: Date,
     required: true,
     index: true,
+  },
+  time: {
+    type: String,
+    trim: true,
   },
   completed: {
     type: Boolean,

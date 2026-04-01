@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Button } from './ui/button';
 import { getIconComponent } from '@/lib/iconHelper';
+import { TimePicker } from '@/components/TimePicker';
 
 interface Planner {
   _id: string;
@@ -19,6 +20,7 @@ interface EditEventDialogProps {
     title: string;
     description?: string;
     date: string;
+    time?: string;
     plannerId?: string;
     recurringEventId?: string;
   };
@@ -27,6 +29,7 @@ interface EditEventDialogProps {
     title: string;
     description?: string;
     date: string;
+    time?: string;
     plannerId?: string;
   }) => Promise<void>;
   userId: string;
@@ -42,6 +45,7 @@ export function EditEventDialog({
   const [title, setTitle] = useState(event.title);
   const [description, setDescription] = useState(event.description || '');
   const [selectedDate, setSelectedDate] = useState(event.date);
+  const [time, setTime] = useState<string | undefined>(event.time || undefined);
   const [selectedPlannerId, setSelectedPlannerId] = useState<string>(event.plannerId || '');
   const [planners, setPlanners] = useState<Planner[]>([]);
   const [loadingPlanners, setLoadingPlanners] = useState(false);
@@ -52,6 +56,7 @@ export function EditEventDialog({
       setTitle(event.title);
       setDescription(event.description || '');
       setSelectedDate(event.date);
+      setTime(event.time || undefined);
       setSelectedPlannerId(event.plannerId || '');
       fetchPlanners();
     }
@@ -91,6 +96,7 @@ export function EditEventDialog({
         title: title.trim(),
         description: description.trim() || undefined,
         date: selectedDate,
+        time,
         plannerId: selectedPlannerId || undefined,
       });
       onClose();
@@ -159,6 +165,8 @@ export function EditEventDialog({
               className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
+
+          <TimePicker value={time} onChange={setTime} label="Time (optional)" />
 
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
