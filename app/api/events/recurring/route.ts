@@ -12,6 +12,7 @@ const randomOrder = () =>
 const recurringEventSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
+  time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   recurrenceType: z.enum(['daily', 'everyXDays', 'daysOfWeek']),
   recurrenceConfig: z.object({
     interval: z.number().min(1).optional(),
@@ -101,6 +102,7 @@ export async function POST(request: NextRequest) {
       userId,
       title: data.title,
       description: data.description,
+      time: data.time,
       recurrenceType: data.recurrenceType,
       recurrenceConfig: data.recurrenceConfig,
       startDate: startDateUTC,

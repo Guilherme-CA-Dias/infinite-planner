@@ -114,7 +114,7 @@ export function CreatePlannerDialog({
 						<label className="block text-sm font-medium text-foreground mb-2">
 							Icon
 						</label>
-						<div className="grid grid-cols-6 gap-2 max-h-48 overflow-y-auto p-2 border border-border/50 rounded-lg">
+						<div className="grid grid-cols-6 gap-2 max-h-48 overflow-y-auto scrollbar-app p-2 border border-border/50 rounded-lg">
 							{PLANNER_ICONS.map((iconName) => {
 								const IconComponent = getIconComponent(iconName);
 								return (

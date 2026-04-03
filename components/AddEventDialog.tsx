@@ -6,6 +6,7 @@ import { X } from 'lucide-react';
 import { Button } from './ui/button';
 import { RecurrenceType } from '@/models/RecurringEvent';
 import { getIconComponent } from '@/lib/iconHelper';
+import { TimePicker } from '@/components/TimePicker';
 
 interface RecurrenceConfig {
   interval?: number;
@@ -19,6 +20,7 @@ interface AddEventDialogProps {
     title: string;
     description?: string;
     date: string;
+    time?: string;
     recurrenceType?: string;
     recurrenceConfig?: RecurrenceConfig;
     endDate?: string;
@@ -45,6 +47,7 @@ export function AddEventDialog({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [selectedDate, setSelectedDate] = useState(initialDate || format(new Date(), 'yyyy-MM-dd'));
+  const [time, setTime] = useState<string | undefined>(undefined);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>('daily');
   const [interval, setInterval] = useState(1);
@@ -139,6 +142,7 @@ export function AddEventDialog({
         title: title.trim(),
         description: description.trim() || undefined,
         date: selectedDate,
+        time,
         recurrenceType: isRecurring ? recurrenceType : undefined,
         recurrenceConfig: isRecurring ? recurrenceConfig : undefined,
         endDate: isRecurring && endDate ? endDate : undefined,
@@ -153,6 +157,7 @@ export function AddEventDialog({
       setInterval(1);
       setSelectedDays([]);
       setEndDate('');
+      setTime(undefined);
       setSelectedPlannerId('');
       onOpenChange(false);
     } catch (error) {
@@ -165,7 +170,7 @@ export function AddEventDialog({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-card rounded-xl shadow-elevated w-full max-w-md p-4 md:p-6 border border-border/50 max-h-[90vh] overflow-y-auto mx-4 md:mx-0">
+      <div className="bg-card rounded-xl shadow-elevated w-full max-w-md p-4 md:p-6 border border-border/50 max-h-[90vh] overflow-y-auto scrollbar-app mx-4 md:mx-0">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-foreground">Add Reminder</h2>
           <Button
@@ -218,6 +223,15 @@ export function AddEventDialog({
               className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
+
+          <TimePicker
+            value={time}
+            onChange={setTime}
+            label="Time (optional)"
+          />
+          <p className="text-xs text-muted-foreground -mt-2">
+            If set, this reminder will appear in the weekly calendar.
+          </p>
 
           <div>
             <label className="flex items-center gap-2 cursor-pointer">

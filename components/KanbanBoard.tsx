@@ -362,6 +362,7 @@ export function KanbanBoard({
 		title: string;
 		description?: string;
 		date: string;
+		time?: string;
 		plannerId?: string;
 	}) => {
 		if (!editEvent) return;

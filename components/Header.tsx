@@ -14,6 +14,7 @@ interface HeaderProps {
 	onAddEvent: () => void;
 	onTodayClick: () => void;
 	onMenuClick?: () => void;
+	onSettingsClick?: () => void;
 	dragEnabled?: boolean;
 	onToggleDrag?: () => void;
 }
@@ -22,6 +23,7 @@ export function Header({
 	onAddEvent,
 	onTodayClick,
 	onMenuClick,
+	onSettingsClick,
 	dragEnabled = false,
 	onToggleDrag,
 }: HeaderProps) {
@@ -88,7 +90,13 @@ export function Header({
 					<Button variant="ghost" size="icon-sm" className="hidden sm:flex">
 						<Search className="w-4 h-4 text-muted-foreground" />
 					</Button>
-					<Button variant="ghost" size="icon-sm" className="hidden sm:flex">
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						className="hidden sm:flex"
+						onClick={onSettingsClick}
+						aria-label="Open settings"
+					>
 						<Settings className="w-4 h-4 text-muted-foreground" />
 					</Button>
 					<Button

@@ -165,6 +165,7 @@ export async function GET(request: NextRequest) {
 			title: string;
 			description?: string;
 			date: string;
+			time?: string;
 			completed: boolean;
 			color: string;
 			recurringEventId: string;
@@ -300,6 +301,7 @@ export async function GET(request: NextRequest) {
 						title: recurringEvent.title,
 						description: recurringEvent.description,
 						date: utcDateFromLocal.toISOString(), // Store as UTC date
+						time: recurringEvent.time,
 						completed: isCompleted,
 						color: recurringEvent.color || "#3b82f6",
 						recurringEventId: recurringEvent._id.toString(),
@@ -337,6 +339,7 @@ export async function GET(request: NextRequest) {
 					title: card.title,
 					description: card.description,
 					date: card.date.toISOString(),
+					time: card.time,
 					completed: card.completed,
 					color: card.color,
 					order: card.order ?? undefined,
@@ -424,6 +427,7 @@ export async function PATCH(request: NextRequest) {
 					completed: z.boolean().optional(),
 					title: z.string().optional(),
 					description: z.string().optional(),
+					time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
 					order: z.number().optional(),
 				}),
 			})
@@ -783,6 +787,9 @@ export async function PATCH(request: NextRequest) {
 		if (updates.description !== undefined) {
 			card.description = updates.description;
 		}
+		if (updates.time !== undefined) {
+			card.time = updates.time;
+		}
 		if (updates.order !== undefined) {
 			card.order = clampOrder(updates.order);
 		}
@@ -816,12 +823,13 @@ export async function POST(request: NextRequest) {
 		}
 
 		const body = await request.json();
-		const { title, description, date, plannerId } = z
+		const { title, description, date, plannerId, time } = z
 			.object({
 				title: z.string().min(1, "Title is required"),
 				description: z.string().optional(),
 				date: z.string().or(z.date()),
 				plannerId: z.string().optional(),
+				time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
 			})
 			.parse(body);
 
@@ -861,6 +869,7 @@ export async function POST(request: NextRequest) {
 			title,
 			description,
 			date: cardDate,
+			time,
 			plannerId: plannerId || undefined,
 			recurringEventId: nonRecurringEventId, // Use unique ObjectId for non-recurring events
 			order: randomOrder(),

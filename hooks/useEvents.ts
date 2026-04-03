@@ -7,6 +7,7 @@ interface EventCardData {
 	title: string;
 	description?: string;
 	date: string;
+	time?: string;
 	completed: boolean;
 	color?: string;
 	recurringEventId?: string;
@@ -76,6 +77,7 @@ export function useEvents(userId: string) {
 							title: card.title,
 							description: card.description,
 							date: dateStr,
+							time: card.time,
 							completed: card.completed,
 							color: card.color,
 							recurringEventId: card.recurringEventId,
@@ -181,6 +183,7 @@ export function useEvents(userId: string) {
 			title: string;
 			description?: string;
 			date: string;
+			time?: string;
 			recurrenceType?: string;
 			recurrenceConfig?: { interval?: number; days?: number[] };
 			endDate?: string;
@@ -198,6 +201,7 @@ export function useEvents(userId: string) {
 						body: JSON.stringify({
 							title: eventData.title,
 							description: eventData.description,
+							time: eventData.time,
 							recurrenceType: eventData.recurrenceType,
 							recurrenceConfig: eventData.recurrenceConfig || {},
 							startDate: eventData.date,
@@ -222,6 +226,7 @@ export function useEvents(userId: string) {
 							title: eventData.title,
 							description: eventData.description,
 							date: eventData.date,
+						time: eventData.time,
 							plannerId: eventData.plannerId,
 						}),
 					});
@@ -321,6 +326,7 @@ export function useEvents(userId: string) {
 				title?: string;
 				description?: string;
 				date?: string;
+				time?: string;
 				plannerId?: string;
 			},
 			scope: "this" | "future" | "all" = "this"
